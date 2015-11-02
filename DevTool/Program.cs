@@ -1,6 +1,9 @@
 ﻿using System;
+using System.Windows.Forms;
+using System.Collections.Generic;
 using EloBuddy;
-using EloBuddy.SDK;  
+using EloBuddy.SDK;
+using EloBuddy.SDK.Rendering;
 using EloBuddy.SDK.Events;
 using SharpDX;
 
@@ -11,10 +14,12 @@ namespace DevTool
     {
 
         public static int INFO_EXTRA_RANGE = 25;
+        static List<Vector3> polygon = new List<Vector3>();
+        static Line lineDrawer = new Line();
+
         public static void log(string log)
         {
-
-            Chat.Print("[Simple DevTool] " + log);
+            Chat.Print("[DevTool] " + log);
         }
 
         static void Main(string[] args)
@@ -34,8 +39,48 @@ namespace DevTool
         {
             Game.OnTick += Game_OnTick;
             Drawing.OnEndScene += Drawing_OnEndScene;
+            Game.OnWndProc += Game_OnWndProc;
         }
 
+
+        static void Game_OnWndProc(WndEventArgs args)
+        {
+            if (args.Msg == 257)
+            {
+              //  log(""+args.WParam);
+                switch (args.WParam)
+                {
+                    case 76: // clear
+                        polygon.Clear();
+                        break;
+                    case 75: //add
+                        polygon.Add(Game.CursorPos);
+                        break;
+                    case 72: //remove
+                        if(polygon.Count > 0)
+                        polygon.RemoveAt(polygon.Count - 1);
+                        break;
+                    case 74://copy to clipboard
+                        String output = "{\n";
+                        for (int i = 0; i < polygon.Count; i++)
+                        {
+                            Vector3 pt = polygon[i];
+                            output += "{" + pt.X + "," + pt.Y + "," + pt.Z + "}" + (i == polygon.Count - 1 ? "":",");
+                        }
+                        output += "\n}";
+                        Clipboard.SetText(output);
+                        log("Polygon copied to Clipboard.");
+                        break;
+
+                }
+            }
+        }
+
+        static void drawX(Vector3 pos, float thickness , float size, System.Drawing.Color color)
+        {
+            lineDrawer.Draw(color, thickness,new[] {new Vector3(pos.X - size,pos.Y - size, pos.Z), new Vector3(pos.X + size,pos.Y + size, pos.Z) });
+            lineDrawer.Draw(color, thickness, new[] { new Vector3(pos.X - size, pos.Y + size, pos.Z), new Vector3(pos.X + size, pos.Y - size, pos.Z) });
+        }
 
         static void Drawing_OnEndScene(EventArgs args)
         {
@@ -75,6 +120,7 @@ namespace DevTool
                         Drawing.DrawText(10 + xOff, 40 + (yOff += Y_OFF_INC), System.Drawing.Color.Magenta, "TotalMagicalDamage: " + ai.TotalMagicalDamage);
                         Drawing.DrawText(10 + xOff, 40 + (yOff += Y_OFF_INC), System.Drawing.Color.Magenta, "Armor: " + ai.Armor);
                         Drawing.DrawText(10 + xOff, 40 + (yOff += Y_OFF_INC), System.Drawing.Color.Magenta, "AttackRange: " + ai.AttackRange);
+                        Drawing.DrawText(10 + xOff, 40 + (yOff += Y_OFF_INC), System.Drawing.Color.Magenta, "BasicAttack.CastRadius: " + ai.BasicAttack.CastRadius);
                         Drawing.DrawText(10 + xOff, 40 + (yOff += Y_OFF_INC), System.Drawing.Color.Magenta, "CastRange: " + ai.CastRange);
                         Drawing.DrawText(10 + xOff, 40 + (yOff += Y_OFF_INC), System.Drawing.Color.Magenta, "PercentLocalGoldRewardMod: " + ai.PercentLocalGoldRewardMod);
                         Drawing.DrawText(10 + xOff, 40 + (yOff += Y_OFF_INC), System.Drawing.Color.Magenta, "PercentHPRegenMod: " + ai.PercentHPRegenMod);
@@ -85,6 +131,12 @@ namespace DevTool
                     xOff += 300;
                 }
             }
+
+            //draw Polygon
+            lineDrawer.Draw(System.Drawing.Color.Yellow, polygon.ToArray());
+            foreach (Vector3 pt in polygon)
+                drawX(pt,2,8,System.Drawing.Color.Red);
+            
         }
 
 
